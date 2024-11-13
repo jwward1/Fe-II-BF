@@ -1,16 +1,19 @@
 Description of files
 --------------------
 
-pybranch.py:    Python analysis program for branching fractions
-branchgrep.py:  Auxiliary file for pybranch.py
-branchrc.py:    Auxiliary file for pybranch.py
-feii_lev:       List of energy levels and lifetimes
-feall.new:      List of identified lines from Nave & Johansson, 2013
-feII.new:       All the Fe II lines extracted from feall.new
-grlev.py:       Program to extract lifetimes from feii_lev and convert lines in feall.new to correct format for pybranch
-FeII.GN:        Identified line
-Fe*.II:         Identified linelists from spectra
-lifetime_comparison.ods:    Comparison of lifetimes from Kurucz, Raassen & Uylings, and experiment
-calibration:    Jupyter notebooks to check and compare the calibrations of the spectra
-saved_logs:     Old log files for some levels that have been analyzed.
-*.log:          Other log files used for testing
+pybranch.py:    	 Python analysis program for branching fractions
+branchgrep.py:  	 Auxiliary file for pybranch.py
+branchrc.py:    	 Auxiliary file for pybranch.py
+feii_lev:       	 List of energy levels and lifetimes
+feall.new:      	 List of identified lines from Nave & Johansson, 2013
+feII.new:       	 All the Fe II lines extracted from feall.new
+grlev.py:		 Program to extract lifetimes from feii_lev and convert lines in feall.new to correct format for pybranch
+gr_theo.py:		 Program to find lines with lifetimes in theoretical calculations and print them with the correct key
+FeII_waveno_tot.E1: 	 Input file for gr_theo.py
+FeII_waveno.E1:		 Output of gr_theo.py
+FeII.GN:        	 Identified line from grlev.py
+Fe*.II:         	 Identified linelists from spectra
+lifetime_comparison.ods: Comparison of lifetimes from Kurucz, Raassen & Uylings, and experiment
+calibration:    	 Jupyter notebooks to check and compare the calibrations of the spectra
+saved_logs:     	 Old log files for some levels that have been analyzed.
+*.log:          	 Other log files used for testing
