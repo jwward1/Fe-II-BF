@@ -6,7 +6,7 @@ def set_parameters():
 	upper_level = "a3F4p_y4F3*"
 	
 	file_name = "y4F3"
-	reference_level = "3P4s__b4P1"
+	reference_level = "a3F4s_b4F4"
 	reference_file = "Fe011720b.003.I"
 	normal_level = "d5____a4P1"
 	

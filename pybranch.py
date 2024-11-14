@@ -11,9 +11,9 @@ from itertools import product
 from os import popen
 from tkinter import *
 from tkinter.scrolledtext import ScrolledText
+from tkinter import simpledialog
 
 calc_file = "FeII_waveno.E1"
-
 
 def get_calculations(E1):
 	  #
@@ -331,6 +331,8 @@ class BranchingFractionCalc(Frame):
         self.normal_level = self.normal_level_entry.get()
         event.widget["foreground"] = "Black"
         self.log(f"Normalized levels using level {self.normal_level} from spectrum {self.reference_file}")
+        comment = simpledialog.askstring(title="Comment",prompt="Why did you renormalize this spectrum?")
+        self.log(comment)
         self.normalize_all_spectra()
         self.show_values()
 
@@ -399,9 +401,10 @@ class BranchingFractionCalc(Frame):
         self.delval =self.Delentry.get()
         del self.snrs[self.delfile,self.delval]
         del self.intensities[self.delfile,self.delval]
-        self.log(f'{self.delfile}, {self.delval} deleted from list' )
+        self.log(f'{self.delfile}, {self.delval} deleted from list' )        
+        comment = simpledialog.askstring(title="Comment",prompt="Why did you delete it? ")
+        self.log(comment)
         self.show_values()
-        
 
     def get_id_lines(self, event):
 
@@ -458,7 +461,8 @@ class BranchingFractionCalc(Frame):
             stdev[level_key] = 1/math.sqrt(sum_weight[level_key])
 
             total_int += avg_int[level_key]
-
+        
+      
 #
 # Calculate the residual
 #  
@@ -517,19 +521,25 @@ class BranchingFractionCalc(Frame):
                      f'{aval:>12.3f} | {unc_aval:>10.0f}% | {theo_val:>12.3f} |')
 
 
-        self.log(''.join(['-']*108)+'\n')
+        self.log(''.join(['-']*108)+'\n')  
+        
+        comment = simpledialog.askstring(title="Comment",prompt="Comments on results")
+        self.log(comment)
 
-    def save(self):
-        """
-        Description:
-            Logs the upper level, reference level, reference file, normalizing level,
-            and normalizing intensity value (which is set to 1000.).
-        """
-        self.log(f"Upper level: {self.upper_level}")
-        self.log(f"Reference level: {self.reference_level}")
-        self.log(f"Reference file: {self.reference_file}")
-        self.log(f"Normalized level: {self.normal_level}")
-        self.log(f"Normalizing value: {1000.}\n")
+
+
+
+ #   def save(self):
+ #       """
+ #       Description:
+ #           Logs the upper level, reference level, reference file, normalizing level,
+ #           and normalizing intensity value (which is set to 1000.).
+ #       """
+ #       self.log(f"Upper level: {self.upper_level}")
+ #       self.log(f"Reference level: {self.reference_level}")
+ #       self.log(f"Reference file: {self.reference_file}")
+ #       self.log(f"Normalized level: {self.normal_level}")
+ #       self.log(f"Normalizing value: {1000.}\n")
 
     def make_widgets(self):
         """
@@ -556,7 +566,7 @@ class BranchingFractionCalc(Frame):
         self.toolbar_frame = Frame(self.widgets_frame, height=30)
         self.toolbar_frame.pack(side=TOP, fill=X)
         Button(self.toolbar_frame, text='Quit', command=self.quit).pack(side=LEFT, fill=X, expand=YES)
-        Button(self.toolbar_frame, text='Save', command=self.save).pack(side=LEFT, fill=X, expand=YES)
+#        Button(self.toolbar_frame, text='Save', command=self.save).pack(side=LEFT, fill=X, expand=YES)
         Button(self.toolbar_frame, text='Results', command=self.display).pack(side=LEFT, fill=X, expand=YES)
 
         self.label_frame = Frame(self.widgets_frame)
@@ -612,8 +622,8 @@ class BranchingFractionCalc(Frame):
         self.Delentry.pack(side=TOP, fill=X, pady=2)
         self.Delentry.insert(0, set_parameters()[6])
         self.Delentry.bind("<Key-Return>", self.DelLine)
-     
 
+     
 if __name__ == '__main__':
 
     BranchingFractionCalc().mainloop()
