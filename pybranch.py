@@ -14,6 +14,7 @@ from tkinter.scrolledtext import ScrolledText
 from tkinter import simpledialog
 
 calc_file = "FeII_waveno.E1"
+id_lines_file = "FeII.GN"
 
 def get_calculations(E1):
 	  #
@@ -49,8 +50,8 @@ class BranchingFractionCalc(Frame):
         self.master.geometry("1200x700")
         self.master.option_add('*Font','mono 8')
         self.pack(expand=YES, fill=BOTH)
-        self.make_widgets()
         self.get_lifetimes()
+        self.make_widgets()
        
     def get_lifetimes(self):
         """
@@ -59,8 +60,8 @@ class BranchingFractionCalc(Frame):
         """
         self.lifetimes = {}
         self.upper_value = {}
+        self.levels = []
         lifetime_files = glob('*.lev')
-
 
         for lifetime_file in lifetime_files:
 
@@ -68,11 +69,13 @@ class BranchingFractionCalc(Frame):
                 line = line.split()
                 upper_level = line[6]
                 self.upper_value[upper_level] = line[2]
-                try: lifetime = eval(line[5])
+                try: 
+                    lifetime = eval(line[5])
+                    self.levels.append(line[6]) 
                 except: lifetime = None
                 self.lifetimes[upper_level] = lifetime
                 self.upper_value[upper_level] = line[2]
-
+                
     def log(self, text):
         """
         Description:
@@ -94,7 +97,7 @@ class BranchingFractionCalc(Frame):
         self.log(f'Log file name set to {log_name}.log\n')
         event.widget["foreground"] = "Black"
 
-    def get_upper_level(self, event):
+    def get_upper_level(self):
         """
         Description:
             Sets self.upper_level to entry contents after pressing Enter key (event).
@@ -102,13 +105,13 @@ class BranchingFractionCalc(Frame):
             for given upper level, then displays the wavenumbers of transitions,
             lower levels, SNRs, Intensities, LS configurations, and notes for observed lines.
         """
-        self.upper_level = self.upper_level_entry.get()
-        event.widget["foreground"] = "Black"
+        
+        self.upper_level = self.Upper.get()
         self.log(f'Upper level: {self.upper_level}')
         self.show_identified_lines()
         self.get_snrs_and_ints()
         self.show_values()
-
+        Upper_lev = StringVar()
     def show_identified_lines(self):
         """
         Description
@@ -133,7 +136,7 @@ class BranchingFractionCalc(Frame):
                     upper_energy_key = line[6]
 
                     # JJL
-                    self.known_lines = grep_open(upper_energy_key, self.id_lines_file)
+                    self.known_lines = grep_open(upper_energy_key, id_lines_file)
                     # self.known_lines = popen(f"grep {upper_energy_key} {self.id_lines_file}", 'r').readlines()
 
                     break
@@ -164,6 +167,36 @@ class BranchingFractionCalc(Frame):
 
         self.log(''.join(['-']*67)+'\n')
 
+    def MakeMenus(self):
+        ulev_key =[]
+
+        for wno in self.wavenumbers:      
+            ulev_key.append(self.transition_ids[wno])
+              
+        self.reflev = StringVar()
+        self.normlev = StringVar()
+        self.dellev = StringVar()
+                
+        # Create the rest of the buttons and dropdown menu widgets
+
+        Button(self.label_frame, text="Ref. Level:", command=self.get_reference_level).grid(row=2,column=0,sticky=SW)
+        self.RefLevelMenu = OptionMenu(self.entry_frame,self.reflev, *ulev_key ).grid(row=2,column=1)
+
+        Label(self.label_frame, text="Renorm. File:").grid(row=3,column=0, sticky=SW,pady=3)
+        ref_file_clicked = StringVar()
+        self.Reffilemenu = OptionMenu(self.entry_frame, ref_file_clicked, command=self.get_reference_file, *self.all_spectrum_files).grid(row=3,column=1)
+
+        Button(self.label_frame, text="Renorm. Level:", command=self.get_normal_level).grid(row=4,column=0,sticky=SW)
+        self.NormalLevelMenu = OptionMenu(self.entry_frame,self.normlev, *ulev_key ).grid(row=4,column=1)
+
+        Label(self.label_frame, text="Delete file:").grid(row=5,column=0, sticky=SW,pady=3)
+        dfile_clicked = StringVar()
+        self.Dfilemenu = OptionMenu(self.entry_frame, dfile_clicked, command=self.Delfil, *self.all_spectrum_files).grid(row=5,column=1)     
+
+        Button(self.label_frame, text="Delete level", command = self.DelLine).grid(row=6,column=0,sticky=SW,pady=3)
+        self.DelLevelMenu = OptionMenu(self.entry_frame, self.dellev, *ulev_key ).grid(row=6,column=1)
+
+
     def get_snrs_and_ints(self):
         """
         Description:
@@ -187,10 +220,6 @@ class BranchingFractionCalc(Frame):
 
         for spectrum in self.all_spectrum_files:
 
-            # JJL
-            # transitions = popen(f'grep -e "- {self.upper_level}" {spectrum}', 'r')
-
-            # for transition in transitions.readlines():
             with open(spectrum) as f:
                 params = f.readline().split()
             resoln=float(params[0])  # Used for no. points/fwhm
@@ -226,23 +255,23 @@ class BranchingFractionCalc(Frame):
 
                     if (level[6] == lower_level):
                         lower_level_key = level[6].strip('*')
-#                print(lower_level, lower_level_key,spectrum,self.snrs[spectrum,lower_level])
+        #           print(lower_level, lower_level_key,spectrum,self.snrs[spectrum,lower_level])
 
                 for line in self.known_lines:
                     line = line.split()
-#                    print(line)
+        #                    print(line)
                     if (line[6].strip('*') == lower_level_key):
                         self.transition_ids[eval(line[4])] = lower_level  
         self.wavenumbers = sorted(self.transition_ids.keys(), reverse=True)
-   
+        
+        self.MakeMenus()
 
         for spectrum,lower_level in self.unc :
-#            print(spectrum,lower_level,self.transition_ids)
+        #            print(spectrum,lower_level,self.transition_ids)
             wnum =  (list(self.transition_ids.keys())[list(self.transition_ids.values()).index(lower_level)])
             calunc = calunc_per_1000[spectrum]*(wnum-self.w_maxI[spectrum])/1000
             self.unc[spectrum,lower_level] = math.sqrt(calunc*calunc+self.unc[spectrum,lower_level])
-#            print(spectrum,wnum,self.w_maxI[spectrum],calunc,self.unc[spectrum,lower_level])
-
+        #            print(spectrum,wnum,self.w_maxI[spectrum],calunc,self.unc[spectrum,lower_level])
 
     def show_values(self):
         """
@@ -282,7 +311,7 @@ class BranchingFractionCalc(Frame):
 
         self.log(''.join(['-']*width)+'\n')
 
-    def get_reference_level(self, event):
+    def get_reference_level(self):
         """
         Description:
             Sets self.reference_level to entry contents after pressing Enter key (event).
@@ -290,8 +319,7 @@ class BranchingFractionCalc(Frame):
             with its intensity set to 1000, then displays the wavenumbers of transitions,
             lower levels, SNRs, Intensities, LS configurations, and notes for observed lines.
         """
-        self.reference_level = self.reference_level_entry.get()
-        event.widget["foreground"] = "Black"
+        self.reference_level = self.reflev.get()
         self.normalize_spectrum()
         self.log(f"Normalizing each spectrum with respect to level {self.reference_level} = 1000.\n")
         self.show_values()
@@ -317,22 +345,25 @@ class BranchingFractionCalc(Frame):
                 try: self.intensities[spectrum, lower_level] = 1000*self.intensities[spectrum, lower_level]/normal
                 except KeyError: pass
 
-    def get_reference_file(self, event):
+    def get_reference_file(self, ref_file):
         """
         Description:
             Sets self.reference_file to entry contents after pressing Enter key (event).
         """
-        self.reference_file = self.reference_file_entry.get()
-        event.widget["foreground"] = "Black"
+        self.reference_file = ref_file
         self.log(f"Reference spectrum file selected: {self.reference_file}\n")
 
-    def get_normal_level(self, event):
+    def get_normal_level(self):
 
-        self.normal_level = self.normal_level_entry.get()
-        event.widget["foreground"] = "Black"
+        self.normal_level = self.normlev.get()
         self.log(f"Normalized levels using level {self.normal_level} from spectrum {self.reference_file}")
         comment = simpledialog.askstring(title="Comment",prompt="Why did you renormalize this spectrum?")
-        self.log(comment)
+        try:
+            self.log(comment) 
+        except:
+            comment = " "
+            self.log(comment)
+
         self.normalize_all_spectra()
         self.show_values()
 
@@ -390,28 +421,25 @@ class BranchingFractionCalc(Frame):
 
             except Exception as e: pass
         
-
-    def Delfil(self,event):        # Put back ability to delete lines (GN, July 21)
-
-        self.delfile = self.Dfilenentry.get()
-        event.widget["foreground"] = "Black"
+    def Delfil(self,dfile):        # Put back ability to delete lines (GN, July 21)
+        self.delfile=dfile
         self.log(f"Deleting value from file {self.delfile}")
         
-    def DelLine(self,event):       # Put back ability to delete lines (GN, July 21)
-        self.delval =self.Delentry.get()
+    def DelLine(self):       # Put back ability to delete lines (GN, July 21)
+        self.delval =self.dellev.get()
         del self.snrs[self.delfile,self.delval]
         del self.intensities[self.delfile,self.delval]
         self.log(f'{self.delfile}, {self.delval} deleted from list' )        
         comment = simpledialog.askstring(title="Comment",prompt="Why did you delete it? ")
-        self.log(comment)
+        try:
+            self.log(comment) 
+        except:
+            comment = " "
+            self.log(comment)
+
         self.show_values()
 
-    def get_id_lines(self, event):
-
-        self.id_lines_file = self.id_lines_entry.get()
-        event.widget["foreground"] = "Black"
-        self.log(f"ID'd lines file selected: {self.id_lines_file}\n")
-
+ 
     def display(self):
         """
         Description:
@@ -524,28 +552,19 @@ class BranchingFractionCalc(Frame):
         self.log(''.join(['-']*108)+'\n')  
         
         comment = simpledialog.askstring(title="Comment",prompt="Comments on results")
-        self.log(comment)
-
-
-
-
- #   def save(self):
- #       """
- #       Description:
- #           Logs the upper level, reference level, reference file, normalizing level,
- #           and normalizing intensity value (which is set to 1000.).
- #       """
- #       self.log(f"Upper level: {self.upper_level}")
- #       self.log(f"Reference level: {self.reference_level}")
- #       self.log(f"Reference file: {self.reference_file}")
- #       self.log(f"Normalized level: {self.normal_level}")
- #       self.log(f"Normalizing value: {1000.}\n")
+        try:
+            self.log(comment) 
+        except:
+            comment = " "
+            self.log(comment)
 
     def make_widgets(self):
         """
         Description:
             Creates the widgets the user interacts with.
         """
+
+# First create the frame and windows to put them all in
 
         self.display_frame = Frame(self)
         self.display_frame.pack(side=RIGHT, fill=BOTH, expand=YES)
@@ -560,68 +579,31 @@ class BranchingFractionCalc(Frame):
         self.display_text.config(xscrollcommand=self.display_scroll_x.set,
                                  yscrollcommand=self.display_scroll_y.set)
 
-
         self.widgets_frame = Frame(self)
         self.widgets_frame.pack(side=LEFT, fill=BOTH)
         self.toolbar_frame = Frame(self.widgets_frame, height=30)
         self.toolbar_frame.pack(side=TOP, fill=X)
-        Button(self.toolbar_frame, text='Quit', command=self.quit).pack(side=LEFT, fill=X, expand=YES)
-#        Button(self.toolbar_frame, text='Save', command=self.save).pack(side=LEFT, fill=X, expand=YES)
-        Button(self.toolbar_frame, text='Results', command=self.display).pack(side=LEFT, fill=X, expand=YES)
+        Button(self.toolbar_frame, width=10,text='Quit', command=self.quit).grid(row=0,column=0)
+        Button(self.toolbar_frame, width=10,text='Results', command=self.display).grid(row=0,column=1)
 
         self.label_frame = Frame(self.widgets_frame)
         self.label_frame.pack(side=LEFT, fill=BOTH)
         self.entry_frame = Frame(self.widgets_frame)
         self.entry_frame.pack(side=RIGHT, fill=BOTH)
 
-        Label(self.label_frame, text="Save As:").pack(side=TOP, fill=X, pady=2.5)
+# Create initial set of widgets to set the log file and get the upper level 
+
+        Label(self.label_frame, text="Log file name:").grid(row=0,column=0, sticky=SW)
         self.file_name_entry = Entry(self.entry_frame, foreground="Blue")
-        self.file_name_entry.pack(side=TOP, fill=X, pady=2)
+        self.file_name_entry.grid(row=0,column=1)
         self.file_name_entry.insert(0, set_parameters()[0])
         self.file_name_entry.bind("<Key-Return>", self.set_output)
-
-        Label(self.label_frame, text="ID'd lines file:").pack(side=TOP, fill=X, pady=2.5)
-        self.id_lines_entry = Entry(self.entry_frame, foreground="Blue")
-        self.id_lines_entry.pack(side=TOP, fill=X, pady=2)
-        self.id_lines_entry.insert(0, set_parameters()[5])
-        self.id_lines_entry.bind("<Key-Return>", self.get_id_lines)
-
-        Label(self.label_frame, text="Upper Level:").pack(side=TOP, fill=X, pady=2.5)
-        self.upper_level_entry = Entry(self.entry_frame, foreground="Blue")
-        self.upper_level_entry.pack(side=TOP, fill=X, pady=2)
-        self.upper_level_entry.insert(0, set_parameters()[1])
-        self.upper_level_entry.bind("<Key-Return>", self.get_upper_level)
-
-        Label(self.label_frame, text="Reference Level:").pack(side=TOP, fill=X, pady=2.5)
-        self.reference_level_entry = Entry(self.entry_frame, foreground="Blue")
-        self.reference_level_entry.pack(side=TOP, fill=X, pady=2)
-        self.reference_level_entry.insert(0, set_parameters()[2])
-        self.reference_level_entry.bind("<Key-Return>", self.get_reference_level)
-
-        Label(self.label_frame, text="Reference File:").pack(side=TOP, fill=X, pady=2.5)
-        self.reference_file_entry = Entry(self.entry_frame, foreground="Blue")
-        self.reference_file_entry.pack(side=TOP, fill=X, pady=2)
-        self.reference_file_entry.insert(0, set_parameters()[3])
-        self.reference_file_entry.bind("<Key-Return>", self.get_reference_file)
-
-        Label(self.label_frame, text="Normalized Level:").pack(side=TOP, fill=X, pady=2.5)
-        self.normal_level_entry = Entry(self.entry_frame, foreground="Blue")
-        self.normal_level_entry.pack(side=TOP, fill=X, pady=2)
-        self.normal_level_entry.insert(0, set_parameters()[4])
-        self.normal_level_entry.bind("<Key-Return>", self.get_normal_level)
-
-# Put back ability to delete lines (GN, July21)        
-        Label(self.label_frame, text="Delete file:").pack(side=TOP, fill=X, pady=2.5)
-        self.Dfilenentry = Entry(self.entry_frame, foreground="Blue")
-        self.Dfilenentry.pack(side=TOP, fill=X, pady=2)
-        self.Dfilenentry.insert(0, set_parameters()[5])
-        self.Dfilenentry.bind("<Key-Return>", self.Delfil)
-        
-        Label(self.label_frame, text="Delete level:").pack(side=TOP, fill=X, pady=2.5)
-        self.Delentry = Entry(self.entry_frame, foreground="Blue")
-        self.Delentry.pack(side=TOP, fill=X, pady=2)
-        self.Delentry.insert(0, set_parameters()[6])
-        self.Delentry.bind("<Key-Return>", self.DelLine)
+    
+        self.Upper = StringVar()
+        Button(self.label_frame,text='Upper level', command=self.get_upper_level).grid(row=1,column=0, sticky=SW,pady=3)
+        self.Dfilemenu = OptionMenu( self.entry_frame, self.Upper, *self.levels )
+        self.Dfilemenu.config(width=15)
+        self.Dfilemenu.grid(row=1,column=1)
 
      
 if __name__ == '__main__':
