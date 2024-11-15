@@ -28,7 +28,6 @@ def get_calculations(E1):
         E1[upper_level,waveno] = float( line[1])
     return(E1)
      
-
 class BranchingFractionCalc(Frame):
     """
     The frame the user interacts with.
@@ -307,7 +306,7 @@ class BranchingFractionCalc(Frame):
             Outputs SNRs and Intensities for upper level in each .I file
         """
         file_num = len(self.all_spectrum_files)
-        width = 27+18*file_num
+        width = 46+18*file_num
 
         self.log(f'SNRs and intensities of observed transitions from '
                  f'upper level {self.upper_level}:')
@@ -315,25 +314,45 @@ class BranchingFractionCalc(Frame):
 
         file_name_line = f'| File Name:              | '
         for spectrum in self.all_spectrum_files: 
-        	file_name_line += f'{spectrum[0:13]:>14s}  | '
+            file_name_line += f'{spectrum[0:13]:>14s}  | '
+        file_name_line += f'Mean    | Stdev  |'
 
         self.log(file_name_line)
         self.log(''.join(['-']*width))
-        self.log(f'| Wavenumber | L Level    | '+f'SNR | Intensity | '*file_num)
+        self.log(f'| Wavenumber | L Level    | '+f'SNR | Intensity | '*file_num + f'        |        |')
         self.log(''.join(['-']*width))
 
         for wavenumber in self.wavenumbers:
 
             data_line = f"| {wavenumber:>10.3f} | {self.transition_ids[wavenumber]:>10s} | "
+            (Imean,Istdev) = self.StdDev(self.transition_ids[wavenumber])
+            Istdev = Imean*Istdev
 
             for spectrum in self.all_spectrum_files:
+                flag = " "
+                try:                    
+                    tmp = Imean/self.snrs[spectrum, self.transition_ids[wavenumber]]
+                    devn = math.sqrt(tmp*tmp + Istdev*Istdev)
+
+                    if -3.*devn < Imean -self.intensities[spectrum, self.transition_ids[wavenumber]] < 3.*devn:
+                        flag = " "
+                    else:
+                        flag = "*"
+#                    print(2*devn,Imean -self.intensities[spectrum, self.transition_ids[wavenumber]], flag)
+                except:
+                    flag = " "
 
                 try:
-                    #print(self.snrs[spectrum, self.transition_ids[wavenumber]], self.intensities[spectrum, self.transition_ids[wavenumber]])
-                    data_line += (f"{round(self.snrs[spectrum, self.transition_ids[wavenumber]]):>3d} | "
-                                  f"{round(self.intensities[spectrum, self.transition_ids[wavenumber]]):9d} | ")
+
+                    data_line += (f"{round(self.snrs[spectrum, self.transition_ids[wavenumber]]):>3d} | ")
+                    data_line += flag
+                    data_line += (f"{round(self.intensities[spectrum, self.transition_ids[wavenumber]]):8d} | ")
+
 
                 except: data_line += f"--- | --------- | "
+
+            data_line += (f"{round(Imean):7d} | ")
+            data_line += (f"{round(Istdev):>6d} |")
 
             self.log(data_line)
 
@@ -455,6 +474,36 @@ class BranchingFractionCalc(Frame):
         self.add_comment("Why did you delete it? ");     
         self.show_values()
 
+    def StdDev(self,key):
+        """
+        Calculate the mean and uncertainty of intensity using self.intensities and self.unc
+        """
+        avg_int = 0
+        sum_weight = 0
+        sqsum = 0
+ 
+        for spectrum in self.all_spectrum_files:
+
+            if (spectrum, key) in self.intensities.keys():
+                weight = 1/(self.unc[spectrum,key])**2
+                if weight > 555:           # 555 = 1/(0.06**2/2)
+                                               # Cap on unc. from calibration, as line ratio.
+                                               # So all lines with SNR>24 get same weight.
+                                               # Omit lamp unc. here as it's the same for all spectra.
+                    weight = 555
+                        
+                avg_int += self.intensities[spectrum, key] * weight
+                sum_weight  += weight
+                sqsum   += self.intensities[spectrum, key]**(2)
+
+        avg_int /= sum_weight
+
+            # This line is fractional weighted standard deviation of intensities (u(I)/I in Sikstrom eqn 6)
+            # Calibration uncertainty has already been taken into account in calculation of the individual uncs.
+        Istdev = 1/math.sqrt(sum_weight)
+
+        return(avg_int,Istdev)
+
     def display(self):
         """
         Description:
@@ -482,30 +531,9 @@ class BranchingFractionCalc(Frame):
             avg_int[level_key] = 0
             sum_weight[level_key] = 0
             sqsum[level_key] = 0
-
-            for spectrum in self.all_spectrum_files:
-
-                if (spectrum, level_key) in self.intensities.keys():
-                    weight = 1/(self.unc[spectrum,level_key])**2
-                    if weight > 555:           # 555 = 1/(0.06**2/2)
-                                               # Cap on unc. from calibration, as line ratio.
-                                               # So all lines with SNR>24 get same weight.
-                                               # Omit lamp unc. here as it's the same for all spectra.
-                        weight = 555
-                        
-                    avg_int[level_key] += self.intensities[spectrum, level_key] * weight
-                    sum_weight[level_key]  += weight
-                    sqsum[level_key]   += self.intensities[spectrum, level_key]**(2)
-
-            avg_int[level_key] /= sum_weight[level_key]
-
-            # This line is fractional weighted standard deviation of intensities (u(I)/I in Sikstrom eqn 6)
-            # Calibration uncertainty has already been taken into account in calculation of the individual uncs.
-            stdev[level_key] = 1/math.sqrt(sum_weight[level_key])
-
+            (avg_int[level_key],stdev[level_key]) =  self.StdDev(level_key)
             total_int += avg_int[level_key]
-        
-      
+             
 #
 # Calculate the residual
 #  
@@ -565,8 +593,6 @@ class BranchingFractionCalc(Frame):
 
 
         self.log(''.join(['-']*108)+'\n')  
-        
-
         self.add_comment("Comment on results")
 
     def add_comment(self,title_text):
@@ -586,8 +612,6 @@ class BranchingFractionCalc(Frame):
         """
         self.add_comment("Comment")
             
-
-
     def make_widgets(self):
         """
         Description:
