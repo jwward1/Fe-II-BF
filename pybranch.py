@@ -183,33 +183,43 @@ class BranchingFractionCalc(Frame):
 
         if self.OldMenu:
 
+            self.RefLevelButton.destroy()
             self.RefLevelMenu.destroy()
+            self.RefFileLabel.destroy()
             self.Reffilemenu.destroy()
+            self.NormalLevelButton.destroy()
             self.NormalLevelMenu.destroy()
+            self.DelFileLabel.destroy()
             self.Dfilemenu.destroy()
+            self.DelLevelButton.destroy()
             self.DelLevelMenu.destroy()
                 
         # Create the rest of the buttons and dropdown menu widgets
 
-        Button(self.label_frame, text="Ref. Level:", command=self.get_reference_level).grid(row=2,column=0,sticky=SW)
+        self.RefLevelButton = Button(self.label_frame, text="Ref. Level:", command=self.get_reference_level)
+        self.RefLevelButton.grid(row=2,column=0,sticky=SW)
         self.RefLevelMenu = OptionMenu(self.entry_frame,self.reflev, *ulev_key )
         self.RefLevelMenu.grid(row=2,column=1)
 
-        Label(self.label_frame, text="Renorm. File:").grid(row=3,column=0, sticky=SW,pady=3)
+        self.RefFileLabel = Label(self.label_frame, text="Renorm. File:")
+        self.RefFileLabel.grid(row=3,column=0, sticky=SW,pady=3)
         ref_file_clicked = StringVar()
         self.Reffilemenu = OptionMenu(self.entry_frame, ref_file_clicked, command=self.get_reference_file, *self.all_spectrum_files)
         self.Reffilemenu.grid(row=3,column=1)
 
-        Button(self.label_frame, text="Renorm. Level:", command=self.get_normal_level).grid(row=4,column=0,sticky=SW)
+        self.NormalLevelButton = Button(self.label_frame, text="Renorm. Level:", command=self.get_normal_level)
+        self.NormalLevelButton.grid(row=4,column=0,sticky=SW)
         self.NormalLevelMenu = OptionMenu(self.entry_frame,self.normlev, *ulev_key )
         self.NormalLevelMenu.grid(row=4,column=1)
 
-        Label(self.label_frame, text="Delete file:").grid(row=5,column=0, sticky=SW,pady=3)
+        self.DelFileLabel = Label(self.label_frame, text="Delete file:")
+        self.DelFileLabel.grid(row=5,column=0, sticky=SW,pady=3)
         dfile_clicked = StringVar()
         self.Dfilemenu = OptionMenu(self.entry_frame, dfile_clicked, command=self.Delfil, *self.all_spectrum_files)
         self.Dfilemenu.grid(row=5,column=1)     
 
-        Button(self.label_frame, text="Delete level", command = self.DelLine).grid(row=6,column=0,sticky=SW,pady=3)
+        self.DelLevelButton = Button(self.label_frame, text="Delete level", command = self.DelLine)
+        self.DelLevelButton.grid(row=6,column=0,sticky=SW,pady=3)
         self.DelLevelMenu = OptionMenu(self.entry_frame, self.dellev, *ulev_key )
         self.DelLevelMenu.grid(row=6,column=1)
 
