@@ -36,6 +36,7 @@ class BranchingFractionCalc(Frame):
     # Set other initial variables
     all_spectrum_files = glob(set_parameters()[8])
     life_unc = set_parameters()[7]
+    OldMenu = 0
 
     def __init__(self, parent=None):
         """
@@ -112,6 +113,7 @@ class BranchingFractionCalc(Frame):
         self.get_snrs_and_ints()
         self.show_values()
         Upper_lev = StringVar()
+
     def show_identified_lines(self):
         """
         Description
@@ -176,26 +178,42 @@ class BranchingFractionCalc(Frame):
         self.reflev = StringVar()
         self.normlev = StringVar()
         self.dellev = StringVar()
+
+        # Destroy any existing widgets
+
+        if self.OldMenu:
+
+            self.RefLevelMenu.destroy()
+            self.Reffilemenu.destroy()
+            self.NormalLevelMenu.destroy()
+            self.Dfilemenu.destroy()
+            self.DelLevelMenu.destroy()
                 
         # Create the rest of the buttons and dropdown menu widgets
 
         Button(self.label_frame, text="Ref. Level:", command=self.get_reference_level).grid(row=2,column=0,sticky=SW)
-        self.RefLevelMenu = OptionMenu(self.entry_frame,self.reflev, *ulev_key ).grid(row=2,column=1)
+        self.RefLevelMenu = OptionMenu(self.entry_frame,self.reflev, *ulev_key )
+        self.RefLevelMenu.grid(row=2,column=1)
 
         Label(self.label_frame, text="Renorm. File:").grid(row=3,column=0, sticky=SW,pady=3)
         ref_file_clicked = StringVar()
-        self.Reffilemenu = OptionMenu(self.entry_frame, ref_file_clicked, command=self.get_reference_file, *self.all_spectrum_files).grid(row=3,column=1)
+        self.Reffilemenu = OptionMenu(self.entry_frame, ref_file_clicked, command=self.get_reference_file, *self.all_spectrum_files)
+        self.Reffilemenu.grid(row=3,column=1)
 
         Button(self.label_frame, text="Renorm. Level:", command=self.get_normal_level).grid(row=4,column=0,sticky=SW)
-        self.NormalLevelMenu = OptionMenu(self.entry_frame,self.normlev, *ulev_key ).grid(row=4,column=1)
+        self.NormalLevelMenu = OptionMenu(self.entry_frame,self.normlev, *ulev_key )
+        self.NormalLevelMenu.grid(row=4,column=1)
 
         Label(self.label_frame, text="Delete file:").grid(row=5,column=0, sticky=SW,pady=3)
         dfile_clicked = StringVar()
-        self.Dfilemenu = OptionMenu(self.entry_frame, dfile_clicked, command=self.Delfil, *self.all_spectrum_files).grid(row=5,column=1)     
+        self.Dfilemenu = OptionMenu(self.entry_frame, dfile_clicked, command=self.Delfil, *self.all_spectrum_files)
+        self.Dfilemenu.grid(row=5,column=1)     
 
         Button(self.label_frame, text="Delete level", command = self.DelLine).grid(row=6,column=0,sticky=SW,pady=3)
-        self.DelLevelMenu = OptionMenu(self.entry_frame, self.dellev, *ulev_key ).grid(row=6,column=1)
+        self.DelLevelMenu = OptionMenu(self.entry_frame, self.dellev, *ulev_key )
+        self.DelLevelMenu.grid(row=6,column=1)
 
+        self.OldMenu = 1
 
     def get_snrs_and_ints(self):
         """
@@ -357,13 +375,7 @@ class BranchingFractionCalc(Frame):
 
         self.normal_level = self.normlev.get()
         self.log(f"Normalized levels using level {self.normal_level} from spectrum {self.reference_file}")
-        comment = simpledialog.askstring(title="Comment",prompt="Why did you renormalize this spectrum?")
-        try:
-            self.log(comment) 
-        except:
-            comment = " "
-            self.log(comment)
-
+        self.add_comment("Why did you renormalize this spectrum?");
         self.normalize_all_spectra()
         self.show_values()
 
@@ -429,17 +441,10 @@ class BranchingFractionCalc(Frame):
         self.delval =self.dellev.get()
         del self.snrs[self.delfile,self.delval]
         del self.intensities[self.delfile,self.delval]
-        self.log(f'{self.delfile}, {self.delval} deleted from list' )        
-        comment = simpledialog.askstring(title="Comment",prompt="Why did you delete it? ")
-        try:
-            self.log(comment) 
-        except:
-            comment = " "
-            self.log(comment)
-
+        self.log(f'{self.delfile}, {self.delval} deleted from list' )   
+        self.add_comment("Why did you delete it? ");     
         self.show_values()
 
- 
     def display(self):
         """
         Description:
@@ -551,12 +556,27 @@ class BranchingFractionCalc(Frame):
 
         self.log(''.join(['-']*108)+'\n')  
         
-        comment = simpledialog.askstring(title="Comment",prompt="Comments on results")
+
+        self.add_comment("Comment on results")
+
+    def add_comment(self,title_text):
+        """
+        Add a comment to the output file
+        """
+        comment = simpledialog.askstring(title="Comment",prompt=title_text)
         try:
             self.log(comment) 
         except:
             comment = " "
             self.log(comment)
+
+    def comment_box(self):
+        """
+        For use with comment button to include a prompt
+        """
+        self.add_comment("Comment")
+            
+
 
     def make_widgets(self):
         """
@@ -605,6 +625,8 @@ class BranchingFractionCalc(Frame):
         self.Dfilemenu.config(width=15)
         self.Dfilemenu.grid(row=1,column=1)
 
+
+        Button(self.label_frame, text="Add comment",command=self.comment_box).grid(row=15,column=0, sticky=SW)
      
 if __name__ == '__main__':
 
