@@ -13,12 +13,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.ticker import FormatStrFormatter
 from tkinter import *
+from tkinter import messagebox
 from tkinter.scrolledtext import ScrolledText
 from tkinter import simpledialog
 from tkinter import filedialog
 from nso_to_hdf import *
-
-
 
 calc_file = "FeII_waveno.E1"
 id_lines_file = "FeII.GN"
@@ -151,29 +150,27 @@ class BranchingFractionCalc(Frame):
 
         self.log(f'Lifetime of upper level: {self.lifetimes[self.upper_level]} ns\n')
         self.log(f'Identified transitions from upper level {self.upper_level}:')
-        self.log(''.join(['-']*67))
-        self.log(f'| Intensity | Wavenumber | L Conf       | U Conf        | Notes   |')
-        self.log(''.join(['-']*67))
+        self.log(''.join(['-']*102))
+        self.log(f'| Intensity | Wavenumber | L Conf       | U Conf        | Notes                                      |')
+        self.log(''.join(['-']*102))
 
-        for transition in self.known_lines:
+        for tr_line in self.known_lines:
 
-            transition = transition.split()
+            transition = tr_line.split()
             transition_key = transition[7]
 
             if (transition_key == upper_energy_key):
                 wavenumber = eval(transition[4])
                 l_conf     = transition[6]
                 u_conf     = transition[7]
-                try: 
-                    note = (transition[0],transition[1],transition[8],transition[9])
-                except: 
-                    note=(transition[0],transition[1])
-                try:
-                    self.log(f'| {note[0]:>1s} {note[1]:>5s}   | {wavenumber:>10.3f} | {l_conf:>12s} | {u_conf:>12s}  | {note[2]:>1s} {note[3]:>2s}    |') 
-                except:
-                    self.log(f'| {note[0]:>1s} {note[1]:>5s}   | {wavenumber:>10.3f} | {l_conf:>12s} | {u_conf:>12s}  |         |')
+                note = (transition[0],transition[1],tr_line[76:len(tr_line)-1])
 
-        self.log(''.join(['-']*67)+'\n')
+                try:
+                    self.log(f'| {note[0]:>1s} {note[1]:>5s}   | {wavenumber:>10.3f} | {l_conf:>12s} | {u_conf:>12s}  | {note[2]:>1s} |') 
+                except:
+                    self.log(f'| {note[0]:>1s} {note[1]:>5s}   | {wavenumber:>10.3f} | {l_conf:>12s} | {u_conf:>12s}  |               |')
+
+        self.log(''.join(['-']*102)+'\n')
 
     def PlotLevel(self):
         # First, find the file and the level. Set the wavenumber
@@ -183,9 +180,14 @@ class BranchingFractionCalc(Frame):
         wnum =  (list(self.transition_ids.keys())[list(self.transition_ids.values()).index(lev)])    
 
         # Read the header in and set the parameters 
-        header = read_header(specfile)
+        if exists(specfile + ".hdr"):
+            header = read_header(specfile)
+        else:
+            messagebox.showinfo("Error","Header file not found")
+            return()
+
         if 'Complex' in header['data_is'] :
-            cmplx = 2
+            cmplx = 2           
         else:
             cmplx = 1
         wstart = float(header['wstart'])
@@ -212,7 +214,6 @@ class BranchingFractionCalc(Frame):
         ax.xaxis.set_major_formatter(FormatStrFormatter('%8.2f'))
         ax.plot(x,spec)
         plt.show()
-
 
     def MakeMenus(self):
         ulev_key =[]
