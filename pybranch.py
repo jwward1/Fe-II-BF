@@ -8,10 +8,17 @@ from branchgrep import grep_open
 from branchrc import set_parameters
 from glob import glob
 from itertools import product
-from os import popen
+from os import popen, path
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.ticker import FormatStrFormatter
 from tkinter import *
 from tkinter.scrolledtext import ScrolledText
 from tkinter import simpledialog
+from tkinter import filedialog
+from nso_to_hdf import *
+
+
 
 calc_file = "FeII_waveno.E1"
 id_lines_file = "FeII.GN"
@@ -168,6 +175,45 @@ class BranchingFractionCalc(Frame):
 
         self.log(''.join(['-']*67)+'\n')
 
+    def PlotLevel(self):
+        # First, find the file and the level. Set the wavenumber
+        file_path = filedialog.askopenfilename(title="Select file", filetypes=[("Spectrum file",('*.dat'))])
+        specfile = file_path[:-4]
+        lev = self.showlev.get()  
+        wnum =  (list(self.transition_ids.keys())[list(self.transition_ids.values()).index(lev)])    
+
+        # Read the header in and set the parameters 
+        header = read_header(specfile)
+        if 'Complex' in header['data_is'] :
+            cmplx = 2
+        else:
+            cmplx = 1
+        wstart = float(header['wstart'])
+        delw = float(header['delw'])
+        # Set the starting index to plot 16 points each side of the line
+        startidx = cmplx *(int((wnum - wstart)/delw) - 16)
+        wref = wnum-16*delw
+        npts = 32*cmplx
+
+        # Open the file and read in the spectrum
+        with open(specfile+".dat","rb") as fb:
+            tmp = np.fromfile(fb,np.float32)
+            spec = tmp[startidx:startidx+npts:2]*float(header['rdsclfct'])
+        
+        # Plot the line
+
+        x=np.linspace(wref,wref+32*delw,32)
+        plt_title = path.basename(file_path).split('/')[-1]
+        fig,ax = plt.subplots(num=plt_title[:-4])
+
+        fig.suptitle(lev)
+        ax.set_xlabel('Wavenumber /cm$^{-1}$')
+        ax.set_ylabel('Relative intensity')
+        ax.xaxis.set_major_formatter(FormatStrFormatter('%8.2f'))
+        ax.plot(x,spec)
+        plt.show()
+
+
     def MakeMenus(self):
         ulev_key =[]
 
@@ -192,6 +238,8 @@ class BranchingFractionCalc(Frame):
             self.Dfilemenu.destroy()
             self.DelLevelButton.destroy()
             self.DelLevelMenu.destroy()
+            self.ShowLevelLabel.destroy()
+            self.ShowLevelMenu.destroy()
                 
         # Create the rest of the buttons and dropdown menu widgets
 
@@ -221,6 +269,16 @@ class BranchingFractionCalc(Frame):
         self.DelLevelButton.grid(row=6,column=0,sticky=SW,pady=3)
         self.DelLevelMenu = OptionMenu(self.entry_frame, self.dellev, *ulev_key )
         self.DelLevelMenu.grid(row=6,column=1)
+
+        self.ShowLevelLabel = Label(self.file_frame,text="Display Line")
+        self.ShowLevelLabel.grid(row=0,column=0)
+        self.showlev = StringVar()
+        self.ShowLevelMenu = OptionMenu(self.file_frame, self.showlev, *ulev_key)
+        self.ShowLevelMenu.grid(row=0,column=1)
+
+        self.ShowFileButton = Button(self.file_frame,text="Select File",command=self.PlotLevel)
+        self.ShowFileButton.grid(row=1,column=0)
+
 
         self.OldMenu = 1
 
@@ -329,25 +387,21 @@ class BranchingFractionCalc(Frame):
             Istdev = Imean*Istdev
 
             for spectrum in self.all_spectrum_files:
-                flag = " "
+                
                 try:                    
                     tmp = Imean/self.snrs[spectrum, self.transition_ids[wavenumber]]
                     devn = math.sqrt(tmp*tmp + Istdev*Istdev)
-
                     if -3.*devn < Imean -self.intensities[spectrum, self.transition_ids[wavenumber]] < 3.*devn:
                         flag = " "
                     else:
                         flag = "*"
-#                    print(2*devn,Imean -self.intensities[spectrum, self.transition_ids[wavenumber]], flag)
                 except:
                     flag = " "
 
                 try:
-
                     data_line += (f"{round(self.snrs[spectrum, self.transition_ids[wavenumber]]):>3d} | ")
                     data_line += flag
                     data_line += (f"{round(self.intensities[spectrum, self.transition_ids[wavenumber]]):8d} | ")
-
 
                 except: data_line += f"--- | --------- | "
 
@@ -644,6 +698,8 @@ class BranchingFractionCalc(Frame):
         self.label_frame.pack(side=LEFT, fill=BOTH)
         self.entry_frame = Frame(self.widgets_frame)
         self.entry_frame.pack(side=RIGHT, fill=BOTH)
+        self.file_frame = Frame(self.widgets_frame )
+        self.file_frame.pack(side=BOTTOM,fill=BOTH )
 
 # Create initial set of widgets to set the log file and get the upper level 
 
@@ -660,7 +716,8 @@ class BranchingFractionCalc(Frame):
         self.Dfilemenu.grid(row=1,column=1)
 
 
-        Button(self.label_frame, text="Add comment",command=self.comment_box).grid(row=15,column=0, sticky=SW)
+        Button(self.file_frame, text="Add comment",command=self.comment_box).grid(row=5,column=0)
+        
      
 if __name__ == '__main__':
 
