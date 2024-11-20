@@ -12,6 +12,7 @@ from os import popen, path
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.ticker import FormatStrFormatter
+from scipy.special import voigt_profile
 from tkinter import *
 from tkinter import messagebox
 from tkinter.scrolledtext import ScrolledText
@@ -21,6 +22,7 @@ from nso_to_hdf import *
 
 calc_file = "FeII_waveno.E1"
 id_lines_file = "FeII.GN"
+plotwin_length = 32
 
 def get_calculations(E1):
 	  #
@@ -172,6 +174,34 @@ class BranchingFractionCalc(Frame):
 
         self.log(''.join(['-']*102)+'\n')
 
+    def voigt_fit(self,specfile, wnum, wref, delw):
+        # Find a line at wavenumber wnum in the linelist corresponding to specfile and calculate its profile
+        linefit = NONE
+        linelist = read_linelist(specfile)
+        for j in linelist:
+            if wnum - 0.1 < j['sig'] < wnum + 0.1:
+                linefit=j
+                break
+
+        if linefit == NONE:
+            return
+#       linefit = (x for x in linelist if  wnum - 1. < x['sig']< wnum + 1. )
+
+        width = linefit['width']/1000.
+
+        # Xgremlin damping parameter runs from 1 to 26, so convert to go from 0 to 1
+        damping = (linefit['dmping']-1)/25
+
+        # Calculate Gaussian width. This is related to the Std. Dev of the normal distribution by 1/2sqrt(2ln2)
+        gauss = width/(2*np.sqrt(2*np.log(2)))     # voigt_profile function takes HWHM rather than FWHM.
+
+        lorentz = width*damping/2
+
+        x = np.linspace(wref,wref+plotwin_length*delw,plotwin_length+1)     
+        y = voigt_profile(x-wnum,gauss,lorentz)
+        y = y/voigt_profile(0,gauss,lorentz) * linefit['xint']
+        return(x,y)
+
     def PlotLevel(self):
         # First, find the file and the level. Set the wavenumber
         file_path = filedialog.askopenfilename(title="Select file", filetypes=[("Spectrum file",('*.dat'))])
@@ -187,32 +217,44 @@ class BranchingFractionCalc(Frame):
             return()
 
         if 'Complex' in header['data_is'] :
-            cmplx = 2           
+            cmplx = int(2)           
         else:
-            cmplx = 1
+            cmplx = int(1)
         wstart = float(header['wstart'])
         delw = float(header['delw'])
         # Set the starting index to plot 16 points each side of the line
-        startidx = cmplx *(int((wnum - wstart)/delw) - 16)
-        wref = wnum-16*delw
-        npts = 32*cmplx
+        startidx = int( cmplx *((wnum - wstart)/delw - plotwin_length/2.))
+        
+        # wref = wnum-plotwin_length*delw/2
+        wref = wstart+startidx*delw/2.       # Start half a plotwin_length before line
+
+        npts = plotwin_length*cmplx
 
         # Open the file and read in the spectrum
         with open(specfile+".dat","rb") as fb:
             tmp = np.fromfile(fb,np.float32)
-            spec = tmp[startidx:startidx+npts:2]*float(header['rdsclfct'])
+            spec = tmp[startidx:startidx+npts:cmplx]*float(header['rdsclfct'])
         
         # Plot the line
 
-        x=np.linspace(wref,wref+32*delw,32)
+        x=np.linspace(wref,wref+(plotwin_length-1)*delw,plotwin_length)
         plt_title = path.basename(file_path).split('/')[-1]
         fig,ax = plt.subplots(num=plt_title[:-4])
 
         fig.suptitle(lev)
         ax.set_xlabel('Wavenumber /cm$^{-1}$')
         ax.set_ylabel('Relative intensity')
-        ax.xaxis.set_major_formatter(FormatStrFormatter('%8.2f'))
+        ax.xaxis.set_major_formatter(FormatStrFormatter('%9.3f'))
         ax.plot(x,spec)
+
+        # Plot the fit
+        try:
+            (fitx,fity) = self.voigt_fit(specfile, wnum, wref, delw)
+            ax.plot(fitx,fity,ls='dotted')
+        except:
+            messagebox.showinfo("Info","No entry in linelist at this wavenumber")
+            
+
         plt.show()
 
     def MakeMenus(self):
