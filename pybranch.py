@@ -174,32 +174,54 @@ class BranchingFractionCalc(Frame):
 
         self.log(''.join(['-']*102)+'\n')
 
+    def calc_gaussian_width_from_voigt(self,width,damping):    
+        """
+        This function uses equation 8 from Kielkopf, JOSA 63, 987 (1973)
+        It's used to get the Gaussian width of a Voigt profile given the Voigt width
+        and damping parameter. There's a factor of sqrt(log(2)) in this equation that I don't understand
+        """
+        eta = 0.099
+        A = 1+eta*np.log(2)
+        B = eta*np.log(2)
+
+        gauss = width * np.sqrt(1-A*damping+B*damping*damping)
+
+        return(gauss)
+
     def voigt_fit(self,specfile, wnum, wref, delw):
+
+        window = 0.1      # Lines within this window are matched
         # Find a line at wavenumber wnum in the linelist corresponding to specfile and calculate its profile
         linefit = NONE
         linelist = read_linelist(specfile)
         for j in linelist:
-            if wnum - 0.1 < j['sig'] < wnum + 0.1:
+            if wnum - window < j['sig'] < wnum + window:
                 linefit=j
                 break
+            #       linefit = (x for x in linelist if  wnum - 1. < x['sig']< wnum + 1. )
 
+        # Do nothing if there is no line in the list       
+        # and return NONE         
         if linefit == NONE:
             return
-#       linefit = (x for x in linelist if  wnum - 1. < x['sig']< wnum + 1. )
 
-        width = linefit['width']/1000.
+        # Xgremlin widths are in 0.001 cm-1, so convert to cm-1.
+        # voigt_profile also uses HWHM, rather than FWHM, so divide by 2.
+        width = linefit['width']/2000.           
 
         # Xgremlin damping parameter runs from 1 to 26, so convert to go from 0 to 1
         damping = (linefit['dmping']-1)/25
 
-        # Calculate Gaussian width. This is related to the Std. Dev of the normal distribution by 1/2sqrt(2ln2)
-        gauss = width/(2*np.sqrt(2*np.log(2)))     # voigt_profile function takes HWHM rather than FWHM.
+        # Calculate Gaussian width.
+        gauss = self.calc_gaussian_width_from_voigt(width,damping)  
+        # Convert to std. devn of normal distribution using 1/2sqrt(2ln2) - needed for voigt_profile
+        gauss = gauss/(np.sqrt(2*np.log(2)))
+        lorentz = width*damping
 
-        lorentz = width*damping/2
-
-        x = np.linspace(wref,wref+plotwin_length*delw,plotwin_length+1)     
+        x = np.linspace(wref,wref+(plotwin_length-1)*delw,plotwin_length)     
         y = voigt_profile(x-wnum,gauss,lorentz)
         y = y/voigt_profile(0,gauss,lorentz) * linefit['xint']
+
         return(x,y)
 
     def PlotLevel(self):
@@ -222,12 +244,11 @@ class BranchingFractionCalc(Frame):
             cmplx = int(1)
         wstart = float(header['wstart'])
         delw = float(header['delw'])
+
         # Set the starting index to plot 16 points each side of the line
         startidx = int( cmplx *((wnum - wstart)/delw - plotwin_length/2.))
         
-        # wref = wnum-plotwin_length*delw/2
         wref = wstart+startidx*delw/2.       # Start half a plotwin_length before line
-
         npts = plotwin_length*cmplx
 
         # Open the file and read in the spectrum
@@ -252,9 +273,7 @@ class BranchingFractionCalc(Frame):
             (fitx,fity) = self.voigt_fit(specfile, wnum, wref, delw)
             ax.plot(fitx,fity,ls='dotted')
         except:
-            messagebox.showinfo("Info","No entry in linelist at this wavenumber")
-            
-
+            messagebox.showinfo("Info","No entry in linelist at this wavenumber")            
         plt.show()
 
     def MakeMenus(self):
