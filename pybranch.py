@@ -190,7 +190,7 @@ class BranchingFractionCalc(Frame):
 
     def voigt_fit(self,specfile, wnum, wref, delw):
 
-        window = 0.1      # Lines within this window are matched
+        window = 0.1      # Lines within this window are matched. Units are cm-1
         # Find a line at wavenumber wnum in the linelist corresponding to specfile and calculate its profile
         linefit = NONE
         linelist = read_linelist(specfile)
@@ -221,8 +221,10 @@ class BranchingFractionCalc(Frame):
         x = np.linspace(wref,wref+(plotwin_length-1)*delw,plotwin_length)     
         y = voigt_profile(x-wnum,gauss,lorentz)
         y = y/voigt_profile(0,gauss,lorentz) * linefit['xint']
+        params = "sig = %f; Int. = %f; FWHM = %f; Damp. = %f "   \
+             % (linefit['sig'],linefit['xint'], width,damping)
 
-        return(x,y)
+        return(x,y, params)
 
     def PlotLevel(self):
         # First, find the file and the level. Set the wavenumber
@@ -271,13 +273,20 @@ class BranchingFractionCalc(Frame):
         ax.xaxis.set_major_formatter(FormatStrFormatter('%9.3f'))
         ax.plot(x,spec)
 
+
         # Plot the fit
         try:
-            (fitx,fity) = self.voigt_fit(specfile, wnum, wref, delw)
+            (fitx,fity, params) = self.voigt_fit(specfile, wnum, wref, delw)
             ax.plot(fitx,fity,ls='dotted')
+            # Leave room at the bottom of the plot to print the line parameters
+            fig.subplots_adjust(bottom=0.2)
+            fig.text(.5, .02, params, ha='center')
         except:
-            messagebox.showinfo("Info","No entry in linelist at this wavenumber")            
-        plt.show()
+            messagebox.showinfo("Info","No entry in linelist at this wavenumber")           
+
+        # 
+
+        fig.show()
 
     def MakeMenus(self):
         ulev_key =[]
