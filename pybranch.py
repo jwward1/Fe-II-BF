@@ -247,14 +247,19 @@ class BranchingFractionCalc(Frame):
 
         # Set the starting index to plot 16 points each side of the line
         startidx = int( cmplx *((wnum - wstart)/delw - plotwin_length/2.))
+        # Make sure that if it's a complex spectrum, that you start on a real point.
+        if cmplx == 2 and startidx % 2 == 1:
+            startidx = startidx-1
         
         wref = wstart+startidx*delw/2.       # Start half a plotwin_length before line
         npts = plotwin_length*cmplx
 
+        print(lev,specfile,wnum,wref,startidx/cmplx)
         # Open the file and read in the spectrum
         with open(specfile+".dat","rb") as fb:
             tmp = np.fromfile(fb,np.float32)
             spec = tmp[startidx:startidx+npts:cmplx]*float(header['rdsclfct'])
+            print(spec)
         
         # Plot the line
 
