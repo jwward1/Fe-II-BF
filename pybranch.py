@@ -188,7 +188,12 @@ class BranchingFractionCalc(Frame):
 
         return(gauss)
 
-    def voigt_fit(self,specfile, wnum, wref, delw):
+    def voigt_fit(self,specfile, wnum, x):
+
+        """
+        Find out if there are any lines at wnum in the linelist corresponding to specfile.
+        If so, calculate a voigt profile using the grid in x
+        """
 
         window = 0.1      # Lines within this window are matched. Units are cm-1
         # Find a line at wavenumber wnum in the linelist corresponding to specfile and calculate its profile
@@ -217,14 +222,13 @@ class BranchingFractionCalc(Frame):
         # Convert to std. devn of normal distribution using 1/2sqrt(2ln2) - needed for voigt_profile
         gauss = gauss/(np.sqrt(2*np.log(2)))
         lorentz = width*damping
-
-        x = np.linspace(wref,wref+(plotwin_length-1)*delw,plotwin_length)     
-        y = voigt_profile(x-wnum,gauss,lorentz)
+   
+        y = voigt_profile(x-linefit['sig'],gauss,lorentz)
         y = y/voigt_profile(0,gauss,lorentz) * linefit['xint']
-        params = "sig = %f; Int. = %f; FWHM = %f; Damp. = %f "   \
-             % (linefit['sig'],linefit['xint'], width,damping)
+#        for i in range(0,len(x)):
+#            print(x[i],y[i])
 
-        return(x,y, params)
+        return(x,y, linefit)
 
     def PlotLevel(self):
         # First, find the file and the level. Set the wavenumber
@@ -247,13 +251,11 @@ class BranchingFractionCalc(Frame):
         wstart = float(header['wstart'])
         delw = float(header['delw'])
 
-        # Set the starting index to plot 16 points each side of the line
-        startidx = int( cmplx *((wnum - wstart)/delw - plotwin_length/2.))
+        # Set the starting index to plot plotwin_length/2 points each side of the line
         # Make sure that if it's a complex spectrum, that you start on a real point.
-        if cmplx == 2 and startidx % 2 == 1:
-            startidx = startidx-1
-        
-        wref = wstart+startidx*delw/2.       # Start half a plotwin_length before line
+        startidx = cmplx * int((wnum - wstart)/delw - plotwin_length/2.)
+   
+        wref = wstart+startidx*delw/cmplx       
         npts = plotwin_length*cmplx
 
         # Open the file and read in the spectrum
@@ -263,28 +265,29 @@ class BranchingFractionCalc(Frame):
         
         # Plot the line
 
+        print(wref,startidx)
         x=np.linspace(wref,wref+(plotwin_length-1)*delw,plotwin_length)
         plt_title = path.basename(file_path).split('/')[-1]
         fig,ax = plt.subplots(num=plt_title[:-4])
 
         fig.suptitle(lev)
         ax.set_xlabel('Wavenumber /cm$^{-1}$')
-        ax.set_ylabel('Relative intensity')
+        ax.set_ylabel('Signal-to-noise Ratio')
         ax.xaxis.set_major_formatter(FormatStrFormatter('%9.3f'))
         ax.plot(x,spec)
 
+        # Plot the fit, if there is one
 
-        # Plot the fit
         try:
-            (fitx,fity, params) = self.voigt_fit(specfile, wnum, wref, delw)
+            (fitx,fity, linefit) = self.voigt_fit(specfile, wnum, x)
             ax.plot(fitx,fity,ls='dotted')
             # Leave room at the bottom of the plot to print the line parameters
             fig.subplots_adjust(bottom=0.2)
+            params = "sig = %9.3f; Int. = %6.0f; FWHM = %5.1f; Damp. = %6.3f "   \
+                % (linefit['sig'],linefit['xint'], linefit['width'], (linefit['dmping']-1)/25)
             fig.text(.5, .02, params, ha='center')
         except:
             messagebox.showinfo("Info","No entry in linelist at this wavenumber")           
-
-        # 
 
         fig.show()
 
