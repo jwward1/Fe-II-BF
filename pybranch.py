@@ -254,12 +254,10 @@ class BranchingFractionCalc(Frame):
         wref = wstart+startidx*delw/2.       # Start half a plotwin_length before line
         npts = plotwin_length*cmplx
 
-        print(lev,specfile,wnum,wref,startidx/cmplx)
         # Open the file and read in the spectrum
         with open(specfile+".dat","rb") as fb:
             tmp = np.fromfile(fb,np.float32)
             spec = tmp[startidx:startidx+npts:cmplx]*float(header['rdsclfct'])
-            print(spec)
         
         # Plot the line
 
@@ -450,8 +448,12 @@ class BranchingFractionCalc(Frame):
         for wavenumber in self.wavenumbers:
 
             data_line = f"| {wavenumber:>10.3f} | {self.transition_ids[wavenumber]:>10s} | "
-            (Imean,Istdev) = self.StdDev(self.transition_ids[wavenumber])
-            Istdev = Imean*Istdev
+            try:   
+                (Imean,Istdev) = self.StdDev(self.transition_ids[wavenumber])
+                Istdev = Imean*Istdev
+            except:
+                Istdev = 0
+                Imean = 0
 
             for spectrum in self.all_spectrum_files:
                 
@@ -617,13 +619,15 @@ class BranchingFractionCalc(Frame):
                 sum_weight  += weight
                 sqsum   += self.intensities[spectrum, key]**(2)
 
-        avg_int /= sum_weight
+        if sum_weight >0:
+            avg_int /= sum_weight
 
             # This line is fractional weighted standard deviation of intensities (u(I)/I in Sikstrom eqn 6)
             # Calibration uncertainty has already been taken into account in calculation of the individual uncs.
-        Istdev = 1/math.sqrt(sum_weight)
-
-        return(avg_int,Istdev)
+            Istdev = 1/math.sqrt(sum_weight)
+            return(avg_int,Istdev)
+        else:
+            return(NONE)
 
     def display(self):
         """
