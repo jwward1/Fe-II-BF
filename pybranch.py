@@ -261,8 +261,6 @@ class BranchingFractionCalc(Frame):
         wref = wstart+startidx*delw/cmplx       
         npts = plotwin_length*cmplx
 
-        print("wstart = ", wstart, "delw = ", delw, "startidx = ", startidx, "npts = ", npts)
-
         # Open the file and read in the spectrum
         with open(specfile+".dat","rb") as fb:
             tmp = np.fromfile(fb,np.float32)
