@@ -225,8 +225,6 @@ class BranchingFractionCalc(Frame):
    
         y = voigt_profile(x-linefit['sig'],gauss,lorentz)
         y = y/voigt_profile(0,gauss,lorentz) * linefit['xint']
-#        for i in range(0,len(x)):
-#            print(x[i],y[i])
 
         return(x,y, linefit)
 
@@ -250,13 +248,20 @@ class BranchingFractionCalc(Frame):
             cmplx = int(1)
         wstart = float(header['wstart'])
         delw = float(header['delw'])
+        wavcorr = float(header['wavcorr'])
+
+        if wavcorr != 0:
+            wstart = wstart*(1+wavcorr)
+            delw = delw*(1+wavcorr)
 
         # Set the starting index to plot plotwin_length/2 points each side of the line
-        # Make sure that if it's a complex spectrum, that you start on a real point.
+        # Make sure that you start on a real point if its a complex spectrum.
         startidx = cmplx * int((wnum - wstart)/delw - plotwin_length/2.)
-   
+        # Calculate the starting wavenumber from the actual starting index, rather than what was requested
         wref = wstart+startidx*delw/cmplx       
         npts = plotwin_length*cmplx
+
+        print("wstart = ", wstart, "delw = ", delw, "startidx = ", startidx, "npts = ", npts)
 
         # Open the file and read in the spectrum
         with open(specfile+".dat","rb") as fb:
@@ -265,7 +270,6 @@ class BranchingFractionCalc(Frame):
         
         # Plot the line
 
-        print(wref,startidx)
         x=np.linspace(wref,wref+(plotwin_length-1)*delw,plotwin_length)
         plt_title = path.basename(file_path).split('/')[-1]
         fig,ax = plt.subplots(num=plt_title[:-4])
@@ -276,15 +280,24 @@ class BranchingFractionCalc(Frame):
         ax.xaxis.set_major_formatter(FormatStrFormatter('%9.3f'))
         ax.plot(x,spec)
 
+        # Leave room at the bottom of the plot to print the line parameters
+        fig.subplots_adjust(bottom=0.2)
+
         # Plot the fit, if there is one
 
+        # If there is a wavenumber correction factor for this file, subtract it off in order
+        # to match the wavenumbers in the .lin file
+        if wavcorr != 0:
+            fig.text(.5,.06,("wavcorr = %4.2e applied" %wavcorr), ha='center' )
+            wnum = wnum*(1-wavcorr)
         try:
             (fitx,fity, linefit) = self.voigt_fit(specfile, wnum, x)
+            # re-apply the wavenumber correction factor to the data
+            fitx=fitx*(1+wavcorr)
             ax.plot(fitx,fity,ls='dotted')
-            # Leave room at the bottom of the plot to print the line parameters
-            fig.subplots_adjust(bottom=0.2)
-            params = "sig = %9.3f; Int. = %6.0f; FWHM = %5.1f; Damp. = %6.3f "   \
-                % (linefit['sig'],linefit['xint'], linefit['width'], (linefit['dmping']-1)/25)
+
+            params = "sig = %9.3f cm$^{-1}$; Int. = %6.0f; FWHM = %6.3f cm$^{-1}$; Damp. = %6.3f "   \
+                % (linefit['sig']*(1+wavcorr),linefit['xint'], linefit['width']/1000., (linefit['dmping']-1)/25)
             fig.text(.5, .02, params, ha='center')
         except:
             messagebox.showinfo("Info","No entry in linelist at this wavenumber")           
@@ -354,7 +367,7 @@ class BranchingFractionCalc(Frame):
         self.ShowLevelMenu.grid(row=0,column=1)
 
         self.ShowFileButton = Button(self.file_frame,text="Select File",command=self.PlotLevel)
-        self.ShowFileButton.grid(row=1,column=0)
+        self.ShowFileButton.grid(row=1,column=1)
 
 
         self.OldMenu = 1
