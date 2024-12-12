@@ -20,9 +20,6 @@ from tkinter import simpledialog
 from tkinter import filedialog
 from nso_to_hdf import *
 
-# calc_file = "CrII_waveno.E1"
-# id_lines_file = "CrII.CS"
-# plotwin_length = 32
 class BranchingFractionCalc(Frame):
     """
     The frame the user interacts with.
@@ -170,10 +167,8 @@ class BranchingFractionCalc(Frame):
                 try:
                     inten_pos = tr_line.index(u_conf)+len(u_conf)
                     note = (tr_line[inten_pos:].rstrip())
-#                    print(tr_line,transition[6],inten_pos)
                 except:
                     note = " "
-#                    print("No intensity for line at ",wavenumber)
 
                 self.log(f'| {wavenumber:>10.3f} | {l_conf:>12s} | {note:<54s} |') 
 
@@ -337,39 +332,47 @@ class BranchingFractionCalc(Frame):
                 
         # Create the rest of the buttons and dropdown menu widgets
 
-        self.RefLevelButton = Button(self.label_frame, text="Ref. Level:", command=self.get_reference_level)
+        self.RefLevelButton = Button(self.label_frame, text="Ref. Level:", width=13, command=self.get_reference_level)
         self.RefLevelButton.grid(row=2,column=0,sticky=SW)
-        self.RefLevelMenu = OptionMenu(self.entry_frame,self.reflev, *ulev_key )
+        self.RefLevelMenu = OptionMenu(self.label_frame, self.reflev, *ulev_key )
+        self.RefLevelMenu.config(width=13)
         self.RefLevelMenu.grid(row=2,column=1)
 
         self.RefFileLabel = Label(self.label_frame, text="Renorm. File:")
-        self.RefFileLabel.grid(row=3,column=0, sticky=SW,pady=3)
+        self.RefFileLabel.grid(row=3,column=0, sticky=SW,pady=1)
         ref_file_clicked = StringVar()
-        self.Reffilemenu = OptionMenu(self.entry_frame, ref_file_clicked, command=self.get_reference_file, *self.all_spectrum_files)
-        self.Reffilemenu.grid(row=3,column=1)
+        self.RefFileMenu = OptionMenu(self.label_frame, ref_file_clicked, command=self.get_reference_file, *self.all_spectrum_files)
+        self.RefFileMenu.config(width=13)
+        self.RefFileMenu.grid(row=3,column=1)
 
-        self.NormalLevelButton = Button(self.label_frame, text="Renorm. Level:", command=self.get_normal_level)
+        self.NormalLevelButton = Button(self.label_frame, text="Renorm. Level:", width=13,command=self.get_normal_level)
         self.NormalLevelButton.grid(row=4,column=0,sticky=SW)
-        self.NormalLevelMenu = OptionMenu(self.entry_frame,self.normlev, *ulev_key )
+        self.NormalLevelMenu = OptionMenu(self.label_frame,self.normlev, *ulev_key )
+        self.NormalLevelMenu.config(width=13)
         self.NormalLevelMenu.grid(row=4,column=1)
 
         self.DelFileLabel = Label(self.label_frame, text="Delete file:")
-        self.DelFileLabel.grid(row=5,column=0, sticky=SW,pady=3)
+        self.DelFileLabel.grid(row=5,column=0, sticky=SW,pady=1)
         dfile_clicked = StringVar()
-        self.Dfilemenu = OptionMenu(self.entry_frame, dfile_clicked, command=self.Delfil, *self.all_spectrum_files)
-        self.Dfilemenu.grid(row=5,column=1)     
+        self.DfileMenu = OptionMenu(self.label_frame, dfile_clicked, command=self.Delfil, *self.all_spectrum_files)
+        self.DfileMenu.config(width=13)
+        self.DfileMenu.grid(row=5,column=1)     
 
-        self.DelLevelButton = Button(self.label_frame, text="Delete level", command = self.DelLine)
-        self.DelLevelButton.grid(row=6,column=0,sticky=SW,pady=3)
-        self.DelLevelMenu = OptionMenu(self.entry_frame, self.dellev, *ulev_key )
+        self.DelLevelButton = Button(self.label_frame, text="Delete level", width=13,command = self.DelLine)
+        self.DelLevelButton.grid(row=6,column=0,sticky=SW,pady=1)
+        self.DelLevelMenu = OptionMenu(self.label_frame, self.dellev, *ulev_key )
+        self.DelLevelMenu.config(width=13)
         self.DelLevelMenu.grid(row=6,column=1)
 
-        self.ShowLevelLabel = Label(self.file_frame,text="Display Line")
+        self.ShowLevelLabel = Label(self.file_frame,text="Plot Line to")
         self.ShowLevelLabel.grid(row=0,column=0)
         self.showlev = StringVar()
         self.ShowLevelMenu = OptionMenu(self.file_frame, self.showlev, *ulev_key)
+        self.ShowLevelMenu.config(width=13)
         self.ShowLevelMenu.grid(row=0,column=1)
 
+        self.ShowFileLabel = Label(self.file_frame,text="in file")
+        self.ShowFileLabel.grid(row=1,column=0)
         self.ShowFileButton = Button(self.file_frame,text="Select File",command=self.PlotLevel)
         self.ShowFileButton.grid(row=1,column=1)
 
@@ -472,10 +475,12 @@ class BranchingFractionCalc(Frame):
         for wavenumber in self.wavenumbers:
 
             data_line = f"| {wavenumber:>10.3f} | {self.transition_ids[wavenumber]:>10s} | "
+            # Calculate the weighted mean intensity and standard deviation
             try:   
                 (Imean,Istdev) = self.StdDev(self.transition_ids[wavenumber])
                 Istdev = Imean*Istdev
             except:
+                # If it fails, it means that the line has been deleted in all the spectra
                 Istdev = 0
                 Imean = 0
                 # Remove this value from self.wavenumbers if its not seen in any spectra
@@ -790,28 +795,27 @@ class BranchingFractionCalc(Frame):
         self.widgets_frame.pack(side=LEFT, fill=BOTH)
         self.toolbar_frame = Frame(self.widgets_frame, height=30)
         self.toolbar_frame.pack(side=TOP, fill=X)
-        Button(self.toolbar_frame, width=10,text='Quit', command=self.quit).grid(row=0,column=0)
-        Button(self.toolbar_frame, width=10,text='Results', command=self.display).grid(row=0,column=1)
+        Button(self.toolbar_frame, width=13,text='Quit', command=self.quit).grid(row=0,column=0)
+        Button(self.toolbar_frame, width=13,text='Results', command=self.display).grid(row=0,column=1)
 
         self.label_frame = Frame(self.widgets_frame)
-        self.label_frame.pack(side=LEFT, fill=BOTH)
-        self.entry_frame = Frame(self.widgets_frame)
-        self.entry_frame.pack(side=RIGHT, fill=BOTH)
+        self.label_frame.pack(side=TOP, fill=BOTH)
+
         self.file_frame = Frame(self.widgets_frame )
-        self.file_frame.pack(side=BOTTOM,fill=BOTH )
+        self.file_frame.pack(side=BOTTOM,fill=Y )
 
 # Create initial set of widgets to set the log file and get the upper level 
 
         Label(self.label_frame, text="Log file name:").grid(row=0,column=0, sticky=SW)
-        self.file_name_entry = Entry(self.entry_frame, foreground="Blue")
+        self.file_name_entry = Entry(self.label_frame, foreground="Blue")
         self.file_name_entry.grid(row=0,column=1)
         self.file_name_entry.insert(0, set_parameters()[0])
         self.file_name_entry.bind("<Key-Return>", self.set_output)
     
         self.Upper = StringVar()
-        Button(self.label_frame,text='Upper level', command=self.get_upper_level).grid(row=1,column=0, sticky=SW,pady=3)
-        self.Dfilemenu = OptionMenu( self.entry_frame, self.Upper, *self.levels )
-        self.Dfilemenu.config(width=15)
+        Button(self.label_frame,text='Upper level',width=13, command=self.get_upper_level).grid(row=1,column=0, sticky=SW,pady=1)
+        self.Dfilemenu = OptionMenu( self.label_frame, self.Upper, *self.levels )
+        self.Dfilemenu.config(width=13)
         self.Dfilemenu.grid(row=1,column=1)
 
 
