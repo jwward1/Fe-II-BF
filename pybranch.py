@@ -20,29 +20,20 @@ from tkinter import simpledialog
 from tkinter import filedialog
 from nso_to_hdf import *
 
-calc_file = "FeII_waveno.E1"
-id_lines_file = "FeII.GN"
-plotwin_length = 32
-
-def get_calculations(E1):
-	  #
-	  # This function gets the calculated A values for calculating a residual
-	  #
-	  
-    for line in open(calc_file, 'r').readlines():
-        line = line.split()
-        waveno = line[0]
-        upper_level = line[10]
-        E1[upper_level,waveno] = float( line[1])
-    return(E1)
-     
+# calc_file = "CrII_waveno.E1"
+# id_lines_file = "CrII.CS"
+# plotwin_length = 32
 class BranchingFractionCalc(Frame):
     """
     The frame the user interacts with.
     """
     # Set other initial variables
     all_spectrum_files = glob(set_parameters()[8])
+    id_lines_file = set_parameters()[5]
+    calc_file = set_parameters()[9]
+    plotwin_length = set_parameters()[11]
     life_unc = set_parameters()[7]
+    discrim = set_parameters()[10]
     OldMenu = 0
 
     def __init__(self, parent=None):
@@ -60,7 +51,19 @@ class BranchingFractionCalc(Frame):
         self.pack(expand=YES, fill=BOTH)
         self.get_lifetimes()
         self.make_widgets()
-       
+
+    def get_calculations(self,E1):
+	  #
+	  # This function gets the calculated A values for calculating a residual
+	  #
+	  
+        for line in open(self.calc_file, 'r').readlines():
+            line = line.split()
+            waveno = line[0]
+            upper_level = line[-1]
+            E1[upper_level,waveno] = float( line[1])
+        return(E1)
+      
     def get_lifetimes(self):
         """
         Description:
@@ -141,38 +144,41 @@ class BranchingFractionCalc(Frame):
 
                 # If level Key is found -> return upper level conf key
                 if(level_file_key == self.upper_level):
-
                     upper_energy_key = line[6]
-
                     # JJL
-                    self.known_lines = grep_open(upper_energy_key, id_lines_file)
+                    self.known_lines = grep_open(upper_energy_key, self.id_lines_file)
                     # self.known_lines = popen(f"grep {upper_energy_key} {self.id_lines_file}", 'r').readlines()
-
                     break
+    
 
         self.log(f'Lifetime of upper level: {self.lifetimes[self.upper_level]} ns\n')
         self.log(f'Identified transitions from upper level {self.upper_level}:')
-        self.log(''.join(['-']*102))
-        self.log(f'| Intensity | Wavenumber | L Conf       | U Conf        | Notes                                      |')
-        self.log(''.join(['-']*102))
+        self.log(''.join(['-']*86))
+        self.log(f'| Wavenumber | L Conf       | Intensity and Notes                                    |')
+        self.log(''.join(['-']*86))
 
         for tr_line in self.known_lines:
 
             transition = tr_line.split()
-            transition_key = transition[7]
+            transition_key = transition[5]
 
             if (transition_key == upper_energy_key):
-                wavenumber = eval(transition[4])
-                l_conf     = transition[6]
-                u_conf     = transition[7]
-                note = (transition[0],transition[1],tr_line[76:len(tr_line)-1])
-
+                wavenumber = eval(transition[0])
+                l_conf     = transition[3]
+                u_conf     = transition[5]
+                # Any intensities should be after the upper config. Notes will be after this
                 try:
-                    self.log(f'| {note[0]:>1s} {note[1]:>5s}   | {wavenumber:>10.3f} | {l_conf:>12s} | {u_conf:>12s}  | {note[2]:>1s} |') 
+                    inten_pos = tr_line.index(u_conf)+len(u_conf)
+                    note = (tr_line[inten_pos:].rstrip())
+#                    print(tr_line,transition[6],inten_pos)
                 except:
-                    self.log(f'| {note[0]:>1s} {note[1]:>5s}   | {wavenumber:>10.3f} | {l_conf:>12s} | {u_conf:>12s}  |               |')
+                    note = " "
+#                    print("No intensity for line at ",wavenumber)
 
-        self.log(''.join(['-']*102)+'\n')
+                self.log(f'| {wavenumber:>10.3f} | {l_conf:>12s} | {note:<54s} |') 
+
+
+        self.log(''.join(['-']*86)+'\n')
 
     def calc_gaussian_width_from_voigt(self,width,damping):    
         """
@@ -256,10 +262,10 @@ class BranchingFractionCalc(Frame):
 
         # Set the starting index to plot plotwin_length/2 points each side of the line
         # Make sure that you start on a real point if its a complex spectrum.
-        startidx = cmplx * int((wnum - wstart)/delw - plotwin_length/2.)
+        startidx = cmplx * int((wnum - wstart)/delw - self.plotwin_length/2.)
         # Calculate the starting wavenumber from the actual starting index, rather than what was requested
         wref = wstart+startidx*delw/cmplx       
-        npts = plotwin_length*cmplx
+        npts = self.plotwin_length*cmplx
 
         # Open the file and read in the spectrum
         with open(specfile+".dat","rb") as fb:
@@ -268,7 +274,7 @@ class BranchingFractionCalc(Frame):
         
         # Plot the line
 
-        x=np.linspace(wref,wref+(plotwin_length-1)*delw,plotwin_length)
+        x=np.linspace(wref,wref+(self.plotwin_length-1)*delw,self.plotwin_length)
         plt_title = path.basename(file_path).split('/')[-1]
         fig,ax = plt.subplots(num=plt_title[:-4])
 
@@ -410,7 +416,6 @@ class BranchingFractionCalc(Frame):
             maxI = 0
             
             for transition in transitions:
-
                 transition = transition.split()
                 lower_level = transition[6]
                 lower_level = lower_level.strip('*')
@@ -428,23 +433,19 @@ class BranchingFractionCalc(Frame):
 
                     if (level[6] == lower_level):
                         lower_level_key = level[6].strip('*')
-        #           print(lower_level, lower_level_key,spectrum,self.snrs[spectrum,lower_level])
-
                 for line in self.known_lines:
                     line = line.split()
-        #                    print(line)
-                    if (line[6].strip('*') == lower_level_key):
-                        self.transition_ids[eval(line[4])] = lower_level  
+                    if (line[3].strip('*') == lower_level_key):
+                        self.transition_ids[eval(line[0])] = lower_level  
+                     
         self.wavenumbers = sorted(self.transition_ids.keys(), reverse=True)
-        
+       
         self.MakeMenus()
 
         for spectrum,lower_level in self.unc :
-        #            print(spectrum,lower_level,self.transition_ids)
             wnum =  (list(self.transition_ids.keys())[list(self.transition_ids.values()).index(lower_level)])
             calunc = calunc_per_1000[spectrum]*(wnum-self.w_maxI[spectrum])/1000
             self.unc[spectrum,lower_level] = math.sqrt(calunc*calunc+self.unc[spectrum,lower_level])
-        #            print(spectrum,wnum,self.w_maxI[spectrum],calunc,self.unc[spectrum,lower_level])
 
     def show_values(self):
         """
@@ -477,6 +478,8 @@ class BranchingFractionCalc(Frame):
             except:
                 Istdev = 0
                 Imean = 0
+                # Remove this value from self.wavenumbers if its not seen in any spectra
+                self.wavenumbers.remove(wavenumber)
 
             for spectrum in self.all_spectrum_files:
                 
@@ -669,40 +672,44 @@ class BranchingFractionCalc(Frame):
         upper_level = {}
         E1 = {}
         jupp = {}
+        delval=[]
 
         BFsq = 0
 
         self.log('Residuals:')
 
         for level_key in level_keys:
-
             avg_int[level_key] = 0
             sum_weight[level_key] = 0
             sqsum[level_key] = 0
-            (avg_int[level_key],stdev[level_key]) =  self.StdDev(level_key)
+            try:
+                (avg_int[level_key],stdev[level_key]) =  self.StdDev(level_key)
+            except:
+#                delval.append(level_key,)
+                avg_int[level_key] = 0
+                stdev[level_key] = 0
             total_int += avg_int[level_key]
              
 #
 # Calculate the residual
 #  
-        get_calculations(E1)
+        self.get_calculations(E1)
         sumA=0
-        delval=[]
+
         theoval={}
         for (x,y) in E1.keys():
             if x==self.upper_level:
                 for wno in self.wavenumbers:
-                    if -0.2  < wno - float(y) < 0.2:
+                    if -self.discrim  < wno - float(y) < self.discrim:
+                        
                         delval.append((x,y))  
                         theoval[x,wno]=E1[x,y]
         for (x,y) in E1.keys():            
             if x==self.upper_level and (x,y) not in delval:
                 sumA += E1[x,y]
                 self.log(f'{y:>10s} | {E1[x,y]:>7.4f}')
-#                print(x, y, E1[x,y])      # Do we want all these in the output?
         frac_resid = sumA*self.lifetimes[self.upper_level]/1000.
         total_int *= (1+frac_resid)
-#        print (theoval)
        
 #
 # Print the header for the results
@@ -725,11 +732,9 @@ class BranchingFractionCalc(Frame):
             level_key = self.transition_ids[wavenumber]
                                                        # First two terms of eqn 7 of Sikstrom (BF uncertainty)
             variance[level_key] = stdev[level_key]**2 * (1 - 2*avg_int[level_key]/total_int)+ BFsq
-#            print('unc: ',math.sqrt(variance[level_key]))
             avg_int[level_key] /= total_int
             aval = (1000 * avg_int[level_key]) / (self.lifetimes[self.upper_level])
             unc_aval = 100 * ((variance[level_key]) + self.life_unc**(2))**(0.5)
-#            print(self.upper_level, wavenumber)
             try: 
                 theo_val = theoval[self.upper_level,wavenumber]
             except:
